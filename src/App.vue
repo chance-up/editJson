@@ -8,6 +8,11 @@
   </div>
   <div ref="scrollArea" class="scroll-area">
     <b-row v-if="selected === ''">
+      <b-col cols="2">
+        <input type="file" name="" class="file-input" accept=".json" @change="onJavaFileUpload" />
+      </b-col>
+    </b-row>
+    <b-row v-if="selected === ''">
       <b-col cols="2" v-for="(category, idx) in categories" :key="idx">
         <b-button variant="outline-primary" @click="selectCategory(category)">{{ category }}</b-button>
       </b-col>
@@ -134,6 +139,34 @@ const addEmpty = async () => {
 const del = (idx: number) => {
   items.value.splice(idx, 1);
   console.log(items.value[idx]);
+};
+
+const onJavaFileUpload = (event: Event) => {
+  if (event.target != null) {
+    const files = (event.target as HTMLInputElement).files;
+    if (files != null && files.length > 0) {
+      if (!files[0].name.includes('.json')) {
+        // 잘못된 형식 파일 모달
+        alert('잘못된 File 형식입니다.');
+        return;
+      }
+      let reader = new FileReader();
+      reader.readAsText(files[0] as Blob);
+      reader.onload = (e) => {
+        const source = reader.result as string;
+        console.log(e);
+        console.log(reader);
+
+        console.log(files[0]);
+
+        //파일 이벤트 초기화
+        const fileElement = document.getElementsByClassName(
+          (event.target as HTMLInputElement).className
+        )[0] as HTMLInputElement;
+        fileElement.value = '';
+      };
+    }
+  }
 };
 </script>
 
