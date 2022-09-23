@@ -1,28 +1,29 @@
 <template>
   <div class="fixeded">
-    <b-row v-if="selected !== ''">
+    <b-row>
+      <b-col cols="10">
+        <input type="file" name="" class="file-input" accept=".json" @change="selectFile" ref="fileRef" />
+      </b-col>
+    </b-row>
+    <b-row v-if="isSelectedFile">
       <b-col cols="3"><b-button class="bv-example-btn" variant="info" @click="back()">뒤로</b-button></b-col>
       <b-col cols="3"><b-button class="bv-example-btn" variant="primary" @click="addEmpty()">추가</b-button></b-col>
       <b-col cols="3"><b-button class="bv-example-btn" variant="success" @click="copy()">저장</b-button></b-col>
     </b-row>
   </div>
   <div ref="scrollArea" class="scroll-area">
-    <b-row v-if="selected === ''">
-      <b-col cols="2">
-        <input type="file" name="" class="file-input" accept=".json" @change="onJavaFileUpload" />
-      </b-col>
-    </b-row>
-    <b-row v-if="selected === ''">
+    <b-row>
       <b-col cols="2" v-for="(category, idx) in categories" :key="idx">
         <b-button variant="outline-primary" @click="selectCategory(category)">{{ category }}</b-button>
       </b-col>
     </b-row>
     <b-row v-if="selected !== ''">
-      <b-col
-        ><b-row v-for="(item, idx) in items" :key="idx">
+      <b-col>
+        <b-row v-for="(item, idx) in items" :key="idx">
           <b-col cols="5"><b-form-input id="input-small" size="sm" v-model="item[0]"></b-form-input></b-col>
           <b-col cols="5"><b-form-input id="input-small" size="sm" v-model="item[1]"></b-form-input></b-col>
           <b-col cols="1"><b-button variant="danger" @click="del(idx)">-</b-button></b-col>
+          <b-col cols="1"><b-button variant="danger" @click="lineCopy(idx)">-</b-button></b-col>
           <p v-if="notiMessageDupl[idx].isValid === false" class="red-txt noti">{{ notiMessageDupl[idx].message }}</p>
         </b-row>
       </b-col>
@@ -31,21 +32,22 @@
 </template>
 
 <script setup lang="ts">
-import json from '../../vue3-admin/src/locales/kr.json';
 import { onMounted, ref, watch, type Ref } from 'vue';
 import useClipboard from 'vue-clipboard3';
+
 type ValidationCheckType = {
   isValid: boolean | null;
   message: string;
 };
+
 const notiMessageDupl: Ref<ValidationCheckType[]> = ref([]);
 const isDupl = ref(false);
 const categories: Ref<any> = ref([]);
+const isSelectedFile = ref(false);
 const selected: Ref<string> = ref('');
+const fullItems: Ref<any> = ref();
 const items: Ref<any> = ref([]);
-onMounted(() => {
-  categories.value = Object.keys(json);
-});
+onMounted(() => {});
 
 watch(
   items,
@@ -55,6 +57,49 @@ watch(
   },
   { deep: true }
 );
+
+const selectFile = (event: Event) => {
+  if (event.target != null) {
+    const files = (event.target as HTMLInputElement).files;
+    if (files != null && files.length > 0) {
+      if (!files[0].name.includes('.json')) {
+        // 잘못된 형식 파일 모달
+        alert('잘못된 File 형식입니다.');
+        return;
+      }
+      let reader = new FileReader();
+      reader.readAsText(files[0] as Blob);
+      reader.onload = (e) => {
+        const source = reader.result as string;
+        fullItems.value = JSON.parse(source);
+        categories.value = Object.keys(fullItems.value);
+        isSelectedFile.value = true;
+
+        //파일 이벤트 초기화
+        const fileElement = document.getElementsByClassName(
+          (event.target as HTMLInputElement).className
+        )[0] as HTMLInputElement;
+        fileElement.value = '';
+      };
+    }
+  }
+};
+
+const selectCategory = (category: string) => {
+  selected.value = category;
+  items.value = jsonToArr(fullItems.value, category);
+  items.value.forEach((item: any) => {
+    notiMessageDupl.value.push({
+      isValid: null,
+      message: '',
+    });
+  });
+};
+
+const lineCopy = (idx: number) => {
+  items.value[idx];
+};
+
 function isDuplicate() {
   let duplIdx = 0;
   for (let i = 0; i < items.value.length; i++) {
@@ -79,33 +124,24 @@ const initNotiMessageDupl = () => {
   }
 };
 
-const selectCategory = (category: string) => {
-  selected.value = category;
-  items.value = jsonToArr(json, category);
-  items.value.forEach((item: any) => {
-    notiMessageDupl.value.push({
-      isValid: null,
-      message: '',
-    });
-  });
-};
 const back = () => {
   selected.value = '';
 };
+
 const { toClipboard } = useClipboard();
 const copy = async () => {
-  if (isDupl.value) {
-    alert('중복된 값이 있습니다~');
-    return;
-  }
-  try {
-    let partObj = arrToJson(items.value);
-    json[selected.value as keyof typeof json] = partObj;
-    await toClipboard(JSON.stringify(json));
-    console.log('Copied to clipboard');
-  } catch (e) {
-    console.error(e);
-  }
+  // if (isDupl.value) {
+  //   alert('중복된 값이 있습니다~');
+  //   return;
+  // }
+  // try {
+  //   let partObj = arrToJson(items.value);
+  //   json[selected.value as keyof typeof json] = partObj;
+  //   await toClipboard(JSON.stringify(json));
+  //   console.log('Copied to clipboard');
+  // } catch (e) {
+  //   console.error(e);
+  // }
 };
 const jsonToArr = (json: any, category: string) => {
   return Object.entries(json[category] as { [key: string]: any }).map((el) => {
@@ -140,34 +176,6 @@ const del = (idx: number) => {
   items.value.splice(idx, 1);
   console.log(items.value[idx]);
 };
-
-const onJavaFileUpload = (event: Event) => {
-  if (event.target != null) {
-    const files = (event.target as HTMLInputElement).files;
-    if (files != null && files.length > 0) {
-      if (!files[0].name.includes('.json')) {
-        // 잘못된 형식 파일 모달
-        alert('잘못된 File 형식입니다.');
-        return;
-      }
-      let reader = new FileReader();
-      reader.readAsText(files[0] as Blob);
-      reader.onload = (e) => {
-        const source = reader.result as string;
-        console.log(e);
-        console.log(reader);
-
-        console.log(files[0]);
-
-        //파일 이벤트 초기화
-        const fileElement = document.getElementsByClassName(
-          (event.target as HTMLInputElement).className
-        )[0] as HTMLInputElement;
-        fileElement.value = '';
-      };
-    }
-  }
-};
 </script>
 
 <style scoped>
@@ -181,6 +189,12 @@ header {
 }
 
 .bv-example-btn {
+  padding: 1rem;
+  font-size: 16px;
+  width: 40%;
+  height: 100%;
+}
+.file-input {
   padding: 1rem;
   font-size: 16px;
   width: 40%;
