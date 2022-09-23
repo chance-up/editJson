@@ -107,7 +107,6 @@ watch(searchText, (v) => {
       }
     });
   });
-  console.log(searchItems.value);
 });
 
 const fileRef = ref();
@@ -119,6 +118,7 @@ const copySearch = async (s1: string, s2: string) => {
   try {
     let t = "{{ $t('" + s1 + '.' + s2 + "') }}";
     await toClipboard(t);
+    toast.success('클립보드에 복사되었습니다.');
   } catch (e) {
     console.error(e);
   }
@@ -182,6 +182,7 @@ const lineCopy = async (idx: number) => {
   try {
     let t = "{{ $t('" + selected.value + '.' + items.value[idx][0] + "') }}";
     await toClipboard(t);
+    toast.success('클립보드에 복사되었습니다.');
   } catch (e) {
     console.error(e);
   }
@@ -224,6 +225,7 @@ const save = async () => {
   fullItems.value[selected.value as keyof typeof fullItems.value] = partObj;
   try {
     await toClipboard(JSON.stringify(fullItems.value));
+    toast.success('클립보드에 복사되었습니다.');
   } catch (e) {
     alert(e);
   }
@@ -235,7 +237,6 @@ const jsonToArr = (json: any, category: string) => {
 };
 
 const arrToJson = (arr: any) => {
-  console.log(arr);
   let str = '';
   str += '{';
   arr.forEach((e: any) => {
