@@ -1,19 +1,24 @@
 <template>
   <div class="fixeded">
+    <br />
     <b-row>
-      <b-col cols="6">
-        <input type="file" name="" class="file-input" accept=".json" @change="selectFile" ref="fileRef" />
+      <b-col cols="4">
+        <b-button class="bv-example-btn" variant="warning" @click="uploadClick()">파일선택 </b-button>
+        <input type="file" name="" class="file-input" accept=".json" @change="selectFile" ref="fileRef" hidden />
       </b-col>
-      <b-col cols="6" v-if="isSelectedFile"
-        ><b-button class="bv-example-btn" variant="warning" @click="save()"
-          >전체 JSON <br />업데이트/클립보드복사</b-button
-        ></b-col
-      >
+      <b-col cols="4" v-if="selected !== ''">
+        <b-button class="bv-example-btn" variant="warning" @click="save()">전체 JSON <br />업데이트/복사 </b-button>
+      </b-col>
+      <b-col cols="4" v-if="isSelectedFile">
+        <b-button class="bv-example-btn" variant="warning" @click="search()">검색 </b-button>
+      </b-col>
     </b-row>
+    <br />
     <b-row v-if="selected !== ''">
-      <b-col cols="3"><b-button class="bv-example-btn" variant="info" @click="back()">뒤로</b-button></b-col>
-      <b-col cols="3"><b-button class="bv-example-btn" variant="primary" @click="addEmpty()">추가</b-button></b-col>
+      <b-col cols="4"><b-button class="bv-example-btn" variant="info" @click="back()">뒤로</b-button></b-col>
+      <b-col cols="4"><b-button class="bv-example-btn" variant="primary" @click="addEmpty()">추가</b-button></b-col>
     </b-row>
+    <br />
   </div>
   <div ref="scrollArea" class="scroll-area">
     <b-row v-if="isSelectedFile">
@@ -21,6 +26,8 @@
         <b-button variant="outline-primary" @click="selectCategory(category)">{{ category }}</b-button>
       </b-col>
     </b-row>
+    <br />
+
     <b-row v-if="selected !== ''">
       <b-col>
         <b-row v-for="(item, idx) in items" :key="idx">
@@ -33,11 +40,38 @@
       </b-col>
     </b-row>
   </div>
+
+  <SearchModal size="s" v-if="isShowSerchModal" style="z-index: 199">
+    <template v-slot:modalHeader>
+      <button @click="closeSearchModal">
+        <i><img src="@/assets/close.svg" /></i>
+      </button>
+    </template>
+
+    <template v-slot:modalContainer>
+      <input type="text" id="dupl-id" class="input-box" :value="searchText" @input="changeSearchText" />
+      <ul>
+        <li v-for="(item, idx) in searchItems" :key="idx">
+          <span class="badge" @click="copySearch(item[0], item[1])">{{
+            item[0] + '.' + item[1] + ' : ' + item[3]
+          }}</span>
+        </li>
+      </ul>
+      <div class="pop-footer">
+        <button class="lg-btn navy-btn" @click="closeSearchModal">닫기</button>
+      </div>
+    </template>
+  </SearchModal>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch, type Ref } from 'vue';
+import { ref, watch, type Ref } from 'vue';
 import useClipboard from 'vue-clipboard3';
+import SearchModal from '@/components/SearchModal.vue';
+import { useToast } from 'vue-toastification';
+
+const { toClipboard } = useClipboard();
+const toast = useToast();
 
 type ValidationCheckType = {
   isValid: boolean | null;
@@ -51,7 +85,9 @@ const isSelectedFile = ref(false);
 const selected: Ref<string> = ref('');
 const fullItems: Ref<any> = ref();
 const items: Ref<any> = ref([]);
-onMounted(() => {});
+const isShowSerchModal = ref(false);
+const searchText = ref('');
+const searchItems: Ref<any> = ref([]);
 
 watch(
   items,
@@ -61,6 +97,49 @@ watch(
   },
   { deep: true }
 );
+
+watch(searchText, (v) => {
+  searchItems.value = [];
+  Object.entries(fullItems.value).forEach((el: any) => {
+    Object.entries(fullItems.value[el[0]] as { [key: string]: any }).forEach((e) => {
+      if (v !== '' && e[1].includes(v)) {
+        searchItems.value.push([el[0], e[0], el[1], e[1]]);
+      }
+    });
+  });
+  console.log(searchItems.value);
+});
+
+const fileRef = ref();
+const uploadClick = () => {
+  fileRef.value.click();
+};
+
+const copySearch = async (s1: string, s2: string) => {
+  try {
+    let t = "{{ $t('" + s1 + '.' + s2 + "') }}";
+    await toClipboard(t);
+  } catch (e) {
+    console.error(e);
+  }
+  closeSearchModal();
+};
+
+const changeSearchText = (e: Event) => {
+  const target = e.target as HTMLSelectElement;
+  searchText.value = target.value;
+};
+
+const search = () => {
+  searchItems.value = [];
+  isShowSerchModal.value = true;
+};
+
+const closeSearchModal = () => {
+  searchText.value = '';
+  searchItems.value = [];
+  isShowSerchModal.value = false;
+};
 
 const selectFile = (event: Event) => {
   if (event.target != null) {
@@ -98,7 +177,7 @@ const selectCategory = (category: string) => {
     });
   });
 };
-const { toClipboard } = useClipboard();
+
 const lineCopy = async (idx: number) => {
   try {
     let t = "{{ $t('" + selected.value + '.' + items.value[idx][0] + "') }}";
@@ -137,9 +216,10 @@ const back = () => {
 
 const save = async () => {
   if (isDupl.value) {
-    alert('중복된 값이 있습니다.');
+    toast.warning('중복된 값이 있습니다.');
     return;
   }
+
   let partObj = arrToJson(items.value);
   fullItems.value[selected.value as keyof typeof fullItems.value] = partObj;
   try {
@@ -155,6 +235,7 @@ const jsonToArr = (json: any, category: string) => {
 };
 
 const arrToJson = (arr: any) => {
+  console.log(arr);
   let str = '';
   str += '{';
   arr.forEach((e: any) => {
@@ -239,5 +320,19 @@ div.con {
   margin-bottom: 1000px;
   height: 10000px;
   background: linear-gradient(to bottom, red, yellow);
+}
+.badge {
+  display: inline-block;
+  padding: 0.35em 0.65em;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.25rem;
+  background-color: #ece1fe;
+  color: #8041f7 !important;
 }
 </style>
