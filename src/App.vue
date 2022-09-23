@@ -4,7 +4,7 @@
       <b-col cols="6">
         <input type="file" name="" class="file-input" accept=".json" @change="selectFile" ref="fileRef" />
       </b-col>
-      <b-col cols="6"
+      <b-col cols="6" v-if="isSelectedFile"
         ><b-button class="bv-example-btn" variant="warning" @click="save()"
           >전체 JSON <br />업데이트/클립보드복사</b-button
         ></b-col
